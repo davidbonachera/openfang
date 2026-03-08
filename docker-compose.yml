@@ -7,9 +7,9 @@ services:
   openfang:
     build: .
     # image: ghcr.io/rightnow-ai/openfang:latest  # Uncomment when GHCR is public
-    entrypoint: ["/bin/sh", "-lc"]
+    entrypoint: /bin/sh -lc
     command: >
-      cat > /data/config.toml <<'EOF'
+      cat >/data/config.toml <<'EOF'
       api_listen = "0.0.0.0:50051"
 
       [default_model]
@@ -17,7 +17,8 @@ services:
       model = "google/gemini-3.1-flash-lite-preview"
       api_key_env = "OPENROUTER_API_KEY"
       EOF
-      && exec openfang start
+
+      exec openfang start
     volumes:
       - openfang-data:/data
     environment:
