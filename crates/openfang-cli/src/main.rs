@@ -1073,9 +1073,18 @@ pub(crate) fn find_daemon() -> Option<String> {
 }
 
 /// Build an HTTP client for daemon calls.
+/// Automatically includes the `Authorization: Bearer <api_key>` header
+/// when an `api_key` is configured in config.toml.
 pub(crate) fn daemon_client() -> reqwest::blocking::Client {
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Some(key) = read_api_key() {
+        if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {key}")) {
+            headers.insert(reqwest::header::AUTHORIZATION, val);
+        }
+    }
     reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(120))
+        .default_headers(headers)
         .build()
         .expect("Failed to build HTTP client")
 }
@@ -1456,7 +1465,7 @@ fn cmd_start(config: Option<PathBuf>) {
 }
 
 /// Read the api_key from ~/.openfang/config.toml (if any).
-fn read_api_key() -> Option<String> {
+pub(crate) fn read_api_key() -> Option<String> {
     let config_path = cli_openfang_home().join("config.toml");
     let text = std::fs::read_to_string(config_path).ok()?;
     let table: toml::Value = text.parse().ok()?;
@@ -1472,10 +1481,7 @@ fn cmd_stop() {
     match find_daemon() {
         Some(base) => {
             let client = daemon_client();
-            let mut req = client.post(format!("{base}/api/shutdown"));
-            if let Some(key) = read_api_key() {
-                req = req.bearer_auth(key);
-            }
+            let req = client.post(format!("{base}/api/shutdown"));
             match req.send() {
                 Ok(r) if r.status().is_success() => {
                     // Wait for daemon to actually stop (up to 5 seconds)
