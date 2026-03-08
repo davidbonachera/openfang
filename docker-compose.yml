@@ -10,7 +10,8 @@ services:
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        printf '%s\n' 'api_listen = "0.0.0.0:50051"' '' '[default_model]' 'provider = "openrouter"' 'model = "google/gemini-3.1-flash-lite-preview"' "api_key = \"${OPENROUTER_API_KEY}\"" >/data/config.toml
+        API_TOKEN=$(cat /proc/sys/kernel/random/uuid)
+        printf '%s\n' 'api_listen = "0.0.0.0:50051"' "api_key = \"${API_TOKEN}\"" '' '[default_model]' 'provider = "openrouter"' 'model = "google/gemini-3.1-flash-lite-preview"' "api_key_env = \"OPENROUTER_API_KEY\"" >/data/config.toml
         cat /data/config.toml
         exec openfang start
     volumes:
