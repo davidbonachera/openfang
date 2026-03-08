@@ -10,7 +10,7 @@ services:
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        API_TOKEN=$(cat /proc/sys/kernel/random/uuid)
+        API_TOKEN=$(head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
         printf '%s\n' 'api_listen = "0.0.0.0:50051"' "api_key = \"${API_TOKEN}\"" '' '[default_model]' 'provider = "openrouter"' 'model = "google/gemini-3.1-flash-lite-preview"' "api_key_env = \"OPENROUTER_API_KEY\"" >/data/config.toml
         cat /data/config.toml
         exec openfang start
