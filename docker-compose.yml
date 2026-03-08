@@ -7,14 +7,24 @@ services:
   openfang:
     build: .
     # image: ghcr.io/rightnow-ai/openfang:latest  # Uncomment when GHCR is public
+    command: >
+      sh -lc '
+      cat > /data/config.toml <<EOF
+      api_listen = "0.0.0.0:50051"
+
+      [default_model]
+      provider = "openrouter"
+      model = "google/gemini-3.1-flash-lite-preview"
+      api_key_env = "OPENROUTER_API_KEY"
+      EOF
+      && exec openfang start
+      '
     ports:
       - "4200:4200"
     volumes:
       - openfang-data:/data
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
