@@ -335,15 +335,8 @@ pub fn spawn_daemon_stream(
     std::thread::spawn(move || {
         use std::io::{BufRead, BufReader, Read};
 
-        let mut headers = reqwest::header::HeaderMap::new();
-        if let Some(key) = crate::read_api_key() {
-            if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {key}")) {
-                headers.insert(reqwest::header::AUTHORIZATION, val);
-            }
-        }
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(300))
-            .default_headers(headers)
             .build()
             .unwrap();
 
@@ -456,15 +449,8 @@ fn daemon_fallback(
     agent_id: &str,
     message: &str,
 ) -> Result<AgentLoopResult, String> {
-    let mut headers = reqwest::header::HeaderMap::new();
-    if let Some(key) = crate::read_api_key() {
-        if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {key}")) {
-            headers.insert(reqwest::header::AUTHORIZATION, val);
-        }
-    }
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(120))
-        .default_headers(headers)
         .build()
         .map_err(|e| e.to_string())?;
 
