@@ -7,15 +7,13 @@ services:
   openfang:
     build: .
     # image: ghcr.io/rightnow-ai/openfang:latest  # Uncomment when GHCR is public
-    entrypoint: ["/bin/sh", "-lc"]
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - |
-        printf '%s\n' 'api_listen = "0.0.0.0:50051"' 'api_key = "openfang-internal-docker-token"' '' '[default_model]' 'provider = "openrouter"' 'model = "google/gemini-3.1-flash-lite-preview"' 'api_key_env = "OPENROUTER_API_KEY"' >/data/config.toml
-        cat /data/config.toml
-        exec openfang start
+      - "openfang init --quick && openfang start"
     volumes:
       - openfang-data:/data
     environment:
+      - OPENFANG_LISTEN=0.0.0.0:50051
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
