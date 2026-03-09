@@ -353,6 +353,10 @@ pub async fn build_router(
             axum::routing::post(routes::install_hand_deps),
         )
         .route(
+            "/api/hands/{hand_id}/set-key",
+            axum::routing::post(routes::set_hand_key),
+        )
+        .route(
             "/api/hands/{hand_id}/settings",
             axum::routing::get(routes::get_hand_settings)
                 .put(routes::update_hand_settings),

@@ -129,8 +129,48 @@ function handsPage() {
       }
     },
 
+    // ── Hand API Key Inputs ─────────────────────────────────────────
+    handKeyInputs: {},
+    handKeySaving: {},
+
     // ── Auto-Install Dependencies ───────────────────────────────────
     installProgress: null,   // null = idle, object = { status, current, total, results, error }
+
+    async saveHandKey(req) {
+      if (!this.setupWizard) return;
+      var envVar = req.check_value;
+      var key = this.handKeyInputs[envVar];
+      if (!key || !key.trim()) { this.showToast('Please enter a key'); return; }
+      this.handKeySaving[envVar] = true;
+      try {
+        var data = await OpenFangAPI.post('/api/hands/' + this.setupWizard.id + '/set-key', {
+          env_var: envVar,
+          key: key.trim()
+        });
+        this.showToast(envVar + ' saved!');
+        this.handKeyInputs[envVar] = '';
+        // Update requirement status
+        if (data.requirements && this.setupWizard.requirements) {
+          for (var i = 0; i < this.setupWizard.requirements.length; i++) {
+            var existing = this.setupWizard.requirements[i];
+            for (var j = 0; j < data.requirements.length; j++) {
+              if (data.requirements[j].key === existing.key) {
+                existing.satisfied = data.requirements[j].satisfied;
+                break;
+              }
+            }
+          }
+          this.setupWizard.requirements_met = data.requirements_met;
+        }
+        if (data.requirements_met) {
+          var self = this;
+          setTimeout(function() { self.setupNextStep(); }, 800);
+        }
+      } catch(e) {
+        this.showToast('Failed: ' + (e.message || 'unknown error'));
+      }
+      this.handKeySaving[envVar] = false;
+    },
 
     async installDeps() {
       if (!this.setupWizard) return;

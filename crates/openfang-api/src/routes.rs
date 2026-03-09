@@ -3637,6 +3637,93 @@ pub async fn check_hand_deps(
     }
 }
 
+/// POST /api/hands/{hand_id}/set-key — Save an API key for a hand dependency.
+///
+/// Writes to `~/.openfang/secrets.env`, sets env var in process,
+/// and re-checks requirements.
+pub async fn set_hand_key(
+    State(state): State<Arc<AppState>>,
+    Path(hand_id): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let env_var = match body["env_var"].as_str() {
+        Some(v) if !v.trim().is_empty() => v.trim().to_string(),
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Missing 'env_var' field"})),
+            );
+        }
+    };
+    let key = match body["key"].as_str() {
+        Some(k) if !k.trim().is_empty() => k.trim().to_string(),
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Missing or empty 'key' field"})),
+            );
+        }
+    };
+
+    // Verify the env_var matches an actual ApiKey requirement for this hand
+    let def = match state.kernel.hand_registry.get_definition(&hand_id) {
+        Some(d) => d,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": format!("Hand not found: {hand_id}")})),
+            );
+        }
+    };
+    let valid = def.requires.iter().any(|r| {
+        matches!(
+            r.requirement_type,
+            openfang_hands::RequirementType::ApiKey | openfang_hands::RequirementType::EnvVar
+        ) && r.check_value == env_var
+    });
+    if !valid {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": format!("{env_var} is not a recognized requirement for hand '{hand_id}'")})),
+        );
+    }
+
+    // Write to secrets.env
+    let secrets_path = state.kernel.config.home_dir.join("secrets.env");
+    if let Err(e) = write_secret_env(&secrets_path, &env_var, &key) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("Failed to write secrets.env: {e}")})),
+        );
+    }
+
+    // Set in current process so check_requirements picks it up immediately
+    std::env::set_var(&env_var, &key);
+
+    // Re-check requirements
+    let reqs = state
+        .kernel
+        .hand_registry
+        .check_requirements(&hand_id)
+        .unwrap_or_default();
+    let all_met = reqs.iter().all(|(_, ok)| *ok);
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "saved",
+            "env_var": env_var,
+            "requirements_met": all_met,
+            "requirements": reqs.iter().map(|(r, ok)| {
+                serde_json::json!({
+                    "key": r.key,
+                    "satisfied": ok,
+                })
+            }).collect::<Vec<_>>(),
+        })),
+    )
+}
+
 /// POST /api/hands/{hand_id}/install-deps — Auto-install missing dependencies for a hand.
 pub async fn install_hand_deps(
     State(state): State<Arc<AppState>>,
@@ -3667,6 +3754,19 @@ pub async fn install_hand_deps(
                 "key": req.key,
                 "status": "already_installed",
                 "message": format!("{} is already available", req.label),
+            }));
+            continue;
+        }
+
+        // API key requirements can't be auto-installed — user must enter them
+        if matches!(
+            req.requirement_type,
+            openfang_hands::RequirementType::ApiKey | openfang_hands::RequirementType::EnvVar
+        ) {
+            results.push(serde_json::json!({
+                "key": req.key,
+                "status": "manual",
+                "message": format!("{} must be configured manually — enter it above", req.label),
             }));
             continue;
         }

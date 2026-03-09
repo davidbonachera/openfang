@@ -2687,23 +2687,19 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                               </ol>
                             </template>
 
-                            <!-- API Key: numbered steps + signup link -->
+                            <!-- API Key: input field + steps + signup link -->
                             <template x-if="req.type === 'ApiKey' && req.install">
                               <div>
+                                <div class="key-input-group" style="margin-bottom:8px">
+                                  <input type="password" :placeholder="'Paste your ' + req.check_value" x-model="handKeyInputs[req.check_value]">
+                                  <button class="btn btn-primary btn-sm" @click="saveHandKey(req)" :disabled="handKeySaving[req.check_value]" x-text="handKeySaving[req.check_value] ? 'Saving...' : 'Save'"></button>
+                                </div>
                                 <template x-if="req.install.steps && req.install.steps.length">
                                   <ol class="api-key-steps">
                                     <template x-for="step in req.install.steps" :key="step">
                                       <li x-text="step"></li>
                                     </template>
                                   </ol>
-                                </template>
-                                <template x-if="req.install.env_example">
-                                  <div class="install-block" style="margin-top:8px">
-                                    <div class="install-cmd">
-                                      <code x-text="req.install.env_example"></code>
-                                      <button class="copy-btn" :class="{ copied: clipboardMsg === req.install.env_example }" @click="copyToClipboard(req.install.env_example)" x-text="clipboardMsg === req.install.env_example ? 'Copied!' : 'Copy'"></button>
-                                    </div>
-                                  </div>
                                 </template>
                                 <div class="flex gap-2 mt-2">
                                   <template x-if="req.install.signup_url">
